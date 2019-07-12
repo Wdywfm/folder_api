@@ -17,7 +17,7 @@ def scan_file(path):
             for line in file:
                 words.extend(re.findall(reg, line))
     except UnicodeDecodeError:
-        with open(path, encoding="utf-8") as file:
+        with open(path, encoding="utf-8", errors="ignore") as file:
             for line in file:
                 words.extend(re.findall(reg, line))
     return words
@@ -42,7 +42,7 @@ def scan_dir(path):
     return files, folders, words
 
 
-def count_words(words):
+def count_words(words: list):
     frequency = {}
     len_words = 0
     for word in words:
@@ -54,41 +54,47 @@ def count_words(words):
     return frequency, len_words
 
 
-def find_most_common_words(frequency):
-    amount = None
-    most_common_words = []
+def find_most_common_words(frequency: dict):
+    most_common_words = {}
     for word in sorted(frequency, key=frequency.get, reverse=True):
-        if not amount:
-            amount = frequency[word]
-        if amount != frequency[word]:
+        most_common_words[word] = frequency[word]
+        if len(most_common_words) == 25:
             break
-        most_common_words.append(word)
     return most_common_words
 
 
-def find_the_rarest_words(frequency):
-    amount = None
-    the_rarest_words = []
+def find_the_rarest_words(frequency: dict):
+    the_rarest_words = {}
     for word in sorted(frequency, key=frequency.get):
-        if not amount:
-            amount = frequency[word]
-        if amount != frequency[word]:
+        the_rarest_words[word] = frequency[word]
+        if len(the_rarest_words) == 25:
             break
-        the_rarest_words.append(word)
     return the_rarest_words
 
 
-def get_letter_stats(words):
+def get_letter_stats(words: list):
+    letter_dict = {"English letters": {}, "Russian letters": {}}
     vowel = 0
     consonant = 0
     for word in words:
         for c in word:
-            if c != '-':
-                if c in 'AaEeIiUuYyOoАаОоУуЭэЫыЯяЁёЮюЕеИи':
+            c = c.lower()
+            if c != "-":
+                if 96 < ord(c) < 123:
+                    if c in letter_dict["English letters"]:
+                        letter_dict["English letters"][c] += 1
+                    else:
+                        letter_dict["English letters"][c] = 1
+                else:
+                    if c in letter_dict["Russian letters"]:
+                        letter_dict["Russian letters"][c] += 1
+                    else:
+                        letter_dict["Russian letters"][c] = 1
+                if c in "aeiuyoаоуэыяёюеи":
                     vowel += 1
                 else:
                     consonant += 1
-    return vowel, consonant
+    return letter_dict, vowel, consonant
 
 
 class Stats(Resource):
@@ -99,16 +105,17 @@ class Stats(Resource):
 
 
 class Files(Resource):
-    def get(self, file_id):
+    def get(self, file_id: int):
         if file_id >= len(files):
             return f"File with {file_id} index doesn't exist"
-        lines = ''
+        lines = ""
         try:
             with open(files[file_id]) as file:
                 for line in file:
                     lines += line
         except UnicodeDecodeError:
-            with open(files[file_id], encoding='utf-8') as file:
+            with open(files[file_id], encoding="utf-8",
+                      errors="ignore") as file:
                 for line in file:
                     lines += line
         response = Response(lines)
@@ -117,7 +124,7 @@ class Files(Resource):
 
 
 class Words(Resource):
-    def get(self, word_id):
+    def get(self, word_id: int):
         if word_id >= len(words):
             return f"Word with {word_id} index doesn't exist"
         response = Response(words[word_id])
@@ -141,16 +148,19 @@ try:
 except ZeroDivisionError:
     average_word_size = 0
 average_word_size = round(average_word_size, 2)
-vowels, consonants = get_letter_stats(words)
+letters, vowels, consonants = get_letter_stats(words)
+letters["English letters"] = dict(sorted(letters["English letters"].items()))
+letters["Russian letters"] = dict(sorted(letters["Russian letters"].items()))
 data = {
     "files": files,
     "folders": folders,
     "number_of_files": len(files),
-    "most_common_words": most_common_words,
-    "the_rarest_words": the_rarest_words,
+    "top_25_of_most_common_words": most_common_words,
+    "top_25_of_the_rarest_words": the_rarest_words,
     "average_word_size": average_word_size,
+    "letters": letters,
     "vowels": vowels,
-    "consonants": consonants
+    "consonants": consonants,
 }
 data = json.dumps(data, indent=4, ensure_ascii=False)
 
@@ -159,4 +169,4 @@ api.add_resource(Files, "/api/files/<int:file_id>")
 api.add_resource(Words, "/api/words/<int:word_id>")
 
 if __name__ == "__main__":
-    app.run(port="6048")
+    app.run()
