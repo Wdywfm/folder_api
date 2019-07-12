@@ -3,7 +3,7 @@ An app that scans folders with all subfolders and txt, py, md files.
 ## Example usage
 ```
 $ python api.py
-Inputh path: E:\some_folder
+Input path: E:\some_folder
 Possible file indexes: 0-9
 Possible word indexes: 0-573
 * Running on http://127.0.0.1:5000/
